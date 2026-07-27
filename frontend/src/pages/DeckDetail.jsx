@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { BookOpen, Brain, Target, Zap, Play, HelpCircle, ArrowLeft } from 'lucide-react';
-import { getDeck, getDeckStats } from '../api.js';
+import { BookOpen, Brain, Target, Zap, Play, HelpCircle, ArrowLeft, Share2, Copy, Check } from 'lucide-react';
+import { getDeck, getDeckStats, createShareLink } from '../api.js';
+import { useToast } from '../components/Toast.jsx';
 
 export default function DeckDetail() {
   const { id } = useParams();
@@ -9,12 +10,32 @@ export default function DeckDetail() {
   const [cards, setCards] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [shareLink, setShareLink] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     Promise.all([getDeck(id), getDeckStats(id)])
       .then(([d, s]) => { setDeck(d.deck); setCards(d.cards); setStats(s); })
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function handleShare() {
+    try {
+      const data = await createShareLink(id);
+      const link = `${window.location.origin}/shared/${data.token}`;
+      setShareLink(link);
+    } catch {
+      toast('Failed to create share link', 'error');
+    }
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(shareLink);
+    setCopied(true);
+    toast('Link copied to clipboard');
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   if (loading) {
     return (
@@ -35,7 +56,30 @@ export default function DeckDetail() {
         <ArrowLeft className="w-4 h-4" /> Back to decks
       </Link>
 
-      <h1 className="text-3xl font-bold mb-6">{deck.title}</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">{deck.title}</h1>
+        <button
+          onClick={handleShare}
+          className="btn-secondary flex items-center gap-2 text-sm"
+        >
+          <Share2 className="w-4 h-4" /> Share
+        </button>
+      </div>
+
+      {shareLink && (
+        <div className="card mb-6 flex items-center gap-3">
+          <input
+            type="text"
+            value={shareLink}
+            readOnly
+            className="input-field flex-1 text-sm"
+          />
+          <button onClick={handleCopy} className="btn-primary flex items-center gap-2 text-sm shrink-0">
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      )}
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">

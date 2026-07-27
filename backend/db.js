@@ -101,6 +101,48 @@ export async function initDB() {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#a855f7',
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS deck_tags (
+      deck_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      PRIMARY KEY (deck_id, tag_id),
+      FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS shared_decks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      deck_id INTEGER NOT NULL UNIQUE,
+      share_token TEXT NOT NULL UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS study_days (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      study_date TEXT NOT NULL,
+      cards_studied INTEGER DEFAULT 0,
+      correct_count INTEGER DEFAULT 0,
+      UNIQUE(user_id, study_date),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS password_resets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Home, Layers, BarChart3, FileText, PenTool, Calculator, LogIn, LogOut, User, Settings } from 'lucide-react';
+import { BookOpen, Home, Layers, BarChart3, FileText, PenTool, Calculator, Timer, Search, LogIn, LogOut, User, Settings, Sun, Moon } from 'lucide-react';
 import { getMe, logout } from './api.js';
 import Home_page from './pages/Home.jsx';
 import Decks_page from './pages/Decks.jsx';
@@ -14,9 +14,12 @@ import Auth_page from './pages/Auth.jsx';
 import ForgotPassword_page from './pages/ForgotPassword.jsx';
 import ResetPassword_page from './pages/ResetPassword.jsx';
 import AccountSettings_page from './pages/AccountSettings.jsx';
+import SharedDeck_page from './pages/SharedDeck.jsx';
+import Search_page from './pages/Search.jsx';
 import CalculatorPopup from './components/Calculator.jsx';
+import Pomodoro from './components/Pomodoro.jsx';
 
-function NavBar({ user, onLogout, onToggleCalc, calcOpen }) {
+function NavBar({ user, onLogout, onToggleCalc, calcOpen, onTogglePomo, pomoOpen, dark, onToggleTheme }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -26,6 +29,7 @@ function NavBar({ user, onLogout, onToggleCalc, calcOpen }) {
     { to: '/stats', icon: BarChart3, label: 'Stats' },
     { to: '/notes', icon: FileText, label: 'Notes' },
     { to: '/whiteboard', icon: PenTool, label: 'Whiteboard' },
+    { to: '/search', icon: Search, label: 'Search' },
   ];
 
   return (
@@ -61,6 +65,26 @@ function NavBar({ user, onLogout, onToggleCalc, calcOpen }) {
           >
             <Calculator className="w-4 h-4" />
             <span className="hidden sm:inline">Calc</span>
+          </button>
+          <button
+            onClick={onTogglePomo}
+            title="Pomodoro Timer"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              pomoOpen
+                ? 'bg-grape-500/20 text-grape-400'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+            }`}
+          >
+            <Timer className="w-4 h-4" />
+            <span className="hidden sm:inline">Timer</span>
+          </button>
+
+          <button
+            onClick={onToggleTheme}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-all"
+          >
+            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
           <div className="w-px h-6 bg-gray-700 mx-2" />
@@ -116,8 +140,19 @@ function NavBar({ user, onLogout, onToggleCalc, calcOpen }) {
 
 export default function App() {
   const [calcOpen, setCalcOpen] = useState(false);
+  const [pomoOpen, setPomoOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem('omoikane-theme');
+    return saved ? saved === 'dark' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('omoikane-theme', dark ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  }, [dark]);
 
   useEffect(() => {
     getMe().then((data) => {
@@ -141,8 +176,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <NavBar user={user} onLogout={handleLogout} calcOpen={calcOpen} onToggleCalc={() => setCalcOpen(!calcOpen)} />
+      <NavBar user={user} onLogout={handleLogout} calcOpen={calcOpen} onToggleCalc={() => setCalcOpen(!calcOpen)} pomoOpen={pomoOpen} onTogglePomo={() => setPomoOpen(!pomoOpen)} dark={dark} onToggleTheme={() => setDark(!dark)} />
       <CalculatorPopup open={calcOpen} onClose={() => setCalcOpen(false)} />
+      <Pomodoro open={pomoOpen} onClose={() => setPomoOpen(false)} />
       <main className="max-w-6xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={<Home_page />} />
@@ -157,6 +193,8 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword_page />} />
           <Route path="/reset-password" element={<ResetPassword_page />} />
           <Route path="/account" element={user ? <AccountSettings_page user={user} onUpdate={setUser} /> : <Auth_page onAuth={setUser} />} />
+          <Route path="/shared/:token" element={<SharedDeck_page />} />
+          <Route path="/search" element={<Search_page />} />
         </Routes>
       </main>
     </BrowserRouter>

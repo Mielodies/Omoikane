@@ -227,3 +227,89 @@ export async function getAccountStats() {
   if (!res.ok) throw new Error('Failed to load stats');
   return res.json();
 }
+
+export async function updateCard(id, data) {
+  const res = await fetch(`${API}/cards/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
+export async function deleteCard(id) {
+  await fetch(`${API}/cards/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
+}
+
+export async function getTags() {
+  const res = await fetch(`${API}/tags`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function createTag(name, color) {
+  const res = await fetch(`${API}/tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name, color }),
+  });
+  return res.json();
+}
+
+export async function deleteTag(id) {
+  await fetch(`${API}/tags/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
+}
+
+export async function getDeckTags(deckId) {
+  const res = await fetch(`${API}/tags/deck/${deckId}`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function addTagToDeck(deckId, tagId) {
+  await fetch(`${API}/tags/deck/${deckId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ tagId }),
+  });
+}
+
+export async function removeTagFromDeck(deckId, tagId) {
+  await fetch(`${API}/tags/deck/${deckId}/${tagId}`, { method: 'DELETE', headers: { ...authHeaders() } });
+}
+
+export async function searchAll(query) {
+  const res = await fetch(`${API}/decks/search?q=${encodeURIComponent(query)}`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function exportDeck(deckId) {
+  const res = await fetch(`${API}/ie/export/${deckId}`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function importDeck(data) {
+  const res = await fetch(`${API}/ie/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function createShareLink(deckId) {
+  const res = await fetch(`${API}/share/${deckId}`, {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  });
+  return res.json();
+}
+
+export async function getSharedDeck(token) {
+  const res = await fetch(`${API}/share/${token}`);
+  return res.json();
+}
+
+export async function getStudyHistory() {
+  const res = await fetch(`${API}/review/history`, { headers: { ...authHeaders() } });
+  return res.json();
+}

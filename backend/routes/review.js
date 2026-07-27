@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { run, get, getAll, insert } from '../db.js';
-import { optionalAuth } from '../middleware/auth.js';
+import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -65,13 +65,23 @@ router.post('/', (req, res) => {
   res.json({ success: true, nextReview: update.next_review });
 });
 
-router.post('/session', (req, res) => {
+router.post('/session', authMiddleware, (req, res) => {
   const { deckId, cardsStudied, correctCount } = req.body;
 
   const sessionId = insert(
     'INSERT INTO sessions (deck_id, cards_studied, correct_count, ended_at) VALUES (?, ?, ?, datetime("now"))',
     [deckId, cardsStudied, correctCount]
   );
+
+  const today = new Date().toISOString().split('T')[0];
+  const existing = get('SELECT * FROM study_days WHERE user_id = ? AND study_date = ?', [req.userId, today]);
+  if (existing) {
+    run('UPDATE study_days SET cards_studied = cards_studied + ?, correct_count = correct_count + ? WHERE id = ?',
+      [cardsStudied, correctCount, existing.id]);
+  } else {
+    insert('INSERT INTO study_days (user_id, study_date, cards_studied, correct_count) VALUES (?, ?, ?, ?)',
+      [req.userId, today, cardsStudied, correctCount]);
+  }
 
   res.json({ sessionId });
 });
@@ -98,6 +108,11 @@ router.get('/stats', optionalAuth, (req, res) => {
   }
 
   res.json({ totalCards, totalDue, totalMastered, totalDecks: decks.length });
+});
+
+router.get('/history', authMiddleware, (req, res) => {
+  const history = getAll('SELECT study_date, cards_studied, correct_count FROM study_days WHERE user_id = ? ORDER BY study_date DESC LIMIT 90', [req.userId]);
+  res.json({ history });
 });
 
 export default router;

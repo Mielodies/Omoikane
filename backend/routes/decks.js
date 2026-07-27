@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { run, get, getAll } from '../db.js';
-import { optionalAuth } from '../middleware/auth.js';
+import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -84,6 +84,24 @@ router.get('/:id/stats', optionalAuth, (req, res) => {
     streak,
     sessionsCount: sessions.length,
   });
+});
+
+router.get('/search', authMiddleware, (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.json({ decks: [], cards: [] });
+
+  const term = `%${q}%`;
+  const decks = getAll('SELECT * FROM decks WHERE user_id = ? AND title LIKE ?', [req.userId, term]);
+
+  const deckIds = decks.map(d => d.id);
+  let cards = [];
+  if (deckIds.length) {
+    const placeholders = deckIds.map(() => '?').join(',');
+    cards = getAll(`SELECT c.*, c.deck_id as deckId FROM cards c WHERE c.deck_id IN (${placeholders}) AND (c.question LIKE ? OR c.answer LIKE ?)`,
+      [...deckIds, term, term]);
+  }
+
+  res.json({ decks, cards });
 });
 
 export default router;

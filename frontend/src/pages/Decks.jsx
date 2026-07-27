@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Trash2, FileText, Youtube, ClipboardPaste, Clock, Sparkles } from 'lucide-react';
-import { getDecks, deleteDeck } from '../api.js';
+import { Layers, Trash2, FileText, Youtube, ClipboardPaste, Clock, Sparkles, Download, Upload } from 'lucide-react';
+import { getDecks, deleteDeck, exportDeck, importDeck } from '../api.js';
+import { useToast } from '../components/Toast.jsx';
 
 const sourceIcons = {
   text: ClipboardPaste,
@@ -12,6 +13,8 @@ const sourceIcons = {
 export default function Decks() {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     getDecks().then(setDecks).finally(() => setLoading(false));
@@ -21,6 +24,38 @@ export default function Decks() {
     if (!confirm('Delete this deck and all its cards?')) return;
     await deleteDeck(id);
     setDecks(decks.filter((d) => d.id !== id));
+  }
+
+  async function handleExport(deckId, deckTitle) {
+    try {
+      const data = await exportDeck(deckId);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${deckTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Deck exported successfully');
+    } catch {
+      toast('Export failed', 'error');
+    }
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await importDeck(data);
+      toast('Deck imported successfully');
+      const updated = await getDecks();
+      setDecks(updated);
+    } catch {
+      toast('Import failed. Please check the file format.', 'error');
+    }
+    e.target.value = '';
   }
 
   if (loading) {
@@ -38,10 +73,26 @@ export default function Decks() {
           <Layers className="w-6 h-6 text-grape-400" />
           Your Decks
         </h1>
-        <Link to="/" className="btn-primary text-sm flex items-center gap-2">
-          <Sparkles className="w-4 h-4" />
-          New Deck
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn-secondary text-sm flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Import Deck
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <Link to="/" className="btn-primary text-sm flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            New Deck
+          </Link>
+        </div>
       </div>
 
       {decks.length === 0 ? (
@@ -63,12 +114,21 @@ export default function Decks() {
                   <Link to={`/decks/${deck.id}`} className="font-semibold text-lg hover:text-grape-400 transition-colors">
                     {deck.title}
                   </Link>
-                  <button
-                    onClick={() => handleDelete(deck.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleExport(deck.id, deck.title)}
+                      title="Export deck"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-grape-400 transition-all"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(deck.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-400">
                   <span className="flex items-center gap-1">

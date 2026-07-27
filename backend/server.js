@@ -15,6 +15,10 @@ import reviewRouter from './routes/review.js';
 import whiteboardRouter from './routes/whiteboard.js';
 import notesRouter from './routes/notes.js';
 import boardsRouter from './routes/whiteboards.js';
+import cardsRouter from './routes/cards.js';
+import tagsRouter from './routes/tags.js';
+import shareRouter from './routes/share.js';
+import importExportRouter from './routes/importexport.js';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from './middleware/auth.js';
 
@@ -73,6 +77,10 @@ app.use('/api/review', reviewRouter);
 app.use('/api/whiteboard', whiteboardRouter);
 app.use('/api/notes', notesRouter);
 app.use('/api/boards', boardsRouter);
+app.use('/api/cards', cardsRouter);
+app.use('/api/tags', tagsRouter);
+app.use('/api/share', shareRouter);
+app.use('/api/ie', importExportRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
