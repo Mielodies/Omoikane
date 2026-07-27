@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { get, insert, run } from '../db.js';
 import { JWT_SECRET, authMiddleware } from '../middleware/auth.js';
+import { sendPasswordResetEmail } from '../services/email.js';
 
 const router = Router();
 
@@ -86,7 +87,7 @@ router.get('/me', (req, res) => {
   }
 });
 
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   try {
     let { login } = req.body;
     login = sanitize(login);
@@ -94,22 +95,29 @@ router.post('/forgot-password', (req, res) => {
     if (!login) return res.status(400).json({ error: 'Enter your username or email' });
 
     const user = get('SELECT id, username, email FROM users WHERE username = ? OR email = ?', [login, login.toLowerCase()]);
-    if (!user) {
-      return res.json({ message: 'If an account exists, a reset token has been generated.' });
-    }
+
+    const genericMsg = { message: 'If an account exists, a reset link has been sent to the email on file.' };
+
+    if (!user) return res.json(genericMsg);
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     insert('INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)', [user.id, token, expiresAt]);
 
-    console.log(`\n=== PASSWORD RESET for ${user.username} ===`);
-    console.log(`Reset token: ${token}`);
-    console.log(`Expires: ${expiresAt}\n`);
+    if (process.env.SMTP_USER) {
+      try {
+        await sendPasswordResetEmail(user.email, token);
+        console.log(`Reset email sent to ${user.email}`);
+      } catch (emailErr) {
+        console.error('Failed to send reset email:', emailErr.message);
+      }
+    } else {
+      console.log(`\n=== PASSWORD RESET for ${user.username} (${user.email}) ===`);
+      console.log(`Reset token: ${token}`);
+      console.log(`Expires: ${expiresAt}\n`);
+    }
 
-    res.json({
-      message: 'If an account exists, a reset token has been generated.',
-      _dev_token: process.env.NODE_ENV !== 'production' ? token : undefined,
-    });
+    res.json(genericMsg);
   } catch (err) {
     console.error('Forgot password error:', err);
     res.status(500).json({ error: 'Failed to process request' });
