@@ -176,6 +176,48 @@ export async function updateBoard(id, name, canvas_data) {
   return res.json();
 }
 
+export async function forgotPassword(login) {
+  const res = await fetch(`${API}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login }),
+  });
+  return res.json();
+}
+
+export async function resetPassword(token, newPassword) {
+  const res = await fetch(`${API}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data;
+}
+
+export async function changeUsername(newUsername, password) {
+  const res = await fetch(`${API}/auth/change-username`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ newUsername, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data;
+}
+
+export async function changePassword(currentPassword, newPassword) {
+  const res = await fetch(`${API}/auth/change-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data;
+}
+
 export async function deleteBoard(id) {
   await fetch(`${API}/boards/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
 }

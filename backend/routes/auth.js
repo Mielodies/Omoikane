@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { get, insert } from '../db.js';
-import { JWT_SECRET } from '../middleware/auth.js';
+import crypto from 'crypto';
+import { get, insert, run } from '../db.js';
+import { JWT_SECRET, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -32,9 +33,6 @@ router.post('/register', (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    if (password.length > 128) {
-      return res.status(400).json({ error: 'Password too long' });
-    }
 
     const existing = get('SELECT id FROM users WHERE username = ? OR email = ?', [username, email]);
     if (existing) {
@@ -43,7 +41,6 @@ router.post('/register', (req, res) => {
 
     const hash = bcrypt.hashSync(password, 12);
     const userId = insert('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)', [username, email, hash]);
-
     const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: userId, username, email } });
   } catch (err) {
@@ -63,11 +60,7 @@ router.post('/login', (req, res) => {
     }
 
     const user = get('SELECT * FROM users WHERE username = ? OR email = ?', [login, login.toLowerCase()]);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    if (!bcrypt.compareSync(password, user.password_hash)) {
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -81,10 +74,7 @@ router.post('/login', (req, res) => {
 
 router.get('/me', (req, res) => {
   const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.json({ user: null });
-  }
-
+  if (!header || !header.startsWith('Bearer ')) return res.json({ user: null });
   try {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -93,6 +83,112 @@ router.get('/me', (req, res) => {
     res.json({ user });
   } catch {
     res.json({ user: null });
+  }
+});
+
+router.post('/forgot-password', (req, res) => {
+  try {
+    let { login } = req.body;
+    login = sanitize(login);
+
+    if (!login) return res.status(400).json({ error: 'Enter your username or email' });
+
+    const user = get('SELECT id, username, email FROM users WHERE username = ? OR email = ?', [login, login.toLowerCase()]);
+    if (!user) {
+      return res.json({ message: 'If an account exists, a reset token has been generated.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    insert('INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)', [user.id, token, expiresAt]);
+
+    console.log(`\n=== PASSWORD RESET for ${user.username} ===`);
+    console.log(`Reset token: ${token}`);
+    console.log(`Expires: ${expiresAt}\n`);
+
+    res.json({
+      message: 'If an account exists, a reset token has been generated.',
+      _dev_token: process.env.NODE_ENV !== 'production' ? token : undefined,
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+router.post('/reset-password', (req, res) => {
+  try {
+    let { token, newPassword } = req.body;
+    token = sanitize(token);
+    newPassword = sanitize(newPassword);
+
+    if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password are required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    const reset = get(
+      'SELECT * FROM password_resets WHERE token = ? AND used = 0 AND expires_at > datetime("now")',
+      [token]
+    );
+    if (!reset) return res.status(400).json({ error: 'Invalid or expired reset token' });
+
+    const hash = bcrypt.hashSync(newPassword, 12);
+    run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, reset.user_id]);
+    run('UPDATE password_resets SET used = 1 WHERE id = ?', [reset.id]);
+
+    res.json({ message: 'Password reset successful. You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+router.post('/change-username', authMiddleware, (req, res) => {
+  try {
+    let { newUsername, password } = req.body;
+    newUsername = sanitize(newUsername);
+    password = sanitize(password);
+
+    if (!newUsername || !password) return res.status(400).json({ error: 'All fields are required' });
+    if (newUsername.length < 2 || newUsername.length > 30) return res.status(400).json({ error: 'Username must be 2-30 characters' });
+    if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) return res.status(400).json({ error: 'Username can only contain letters, numbers, _ and -' });
+
+    const user = get('SELECT * FROM users WHERE id = ?', [req.userId]);
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    const existing = get('SELECT id FROM users WHERE username = ? AND id != ?', [newUsername, req.userId]);
+    if (existing) return res.status(400).json({ error: 'Username already taken' });
+
+    run('UPDATE users SET username = ? WHERE id = ?', [newUsername, req.userId]);
+    const updated = get('SELECT id, username, email, created_at FROM users WHERE id = ?', [req.userId]);
+    res.json({ user: updated });
+  } catch (err) {
+    console.error('Change username error:', err);
+    res.status(500).json({ error: 'Failed to change username' });
+  }
+});
+
+router.post('/change-password', authMiddleware, (req, res) => {
+  try {
+    let { currentPassword, newPassword } = req.body;
+    currentPassword = sanitize(currentPassword);
+    newPassword = sanitize(newPassword);
+
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'All fields are required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+    const user = get('SELECT * FROM users WHERE id = ?', [req.userId]);
+    if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
+      return res.status(401).json({ error: 'Incorrect current password' });
+    }
+
+    const hash = bcrypt.hashSync(newPassword, 12);
+    run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.userId]);
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

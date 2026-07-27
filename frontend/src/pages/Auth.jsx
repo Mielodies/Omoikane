@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { register, login } from '../api.js';
 
@@ -10,6 +10,7 @@ export default function Auth({ onAuth }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -20,6 +21,7 @@ export default function Auth({ onAuth }) {
         ? await register(username, email, password)
         : await login(username, password);
       onAuth(data.user);
+      navigate('/');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -110,6 +112,14 @@ export default function Auth({ onAuth }) {
             )}
           </button>
         </form>
+
+        {mode === 'login' && (
+          <div className="mt-4 text-center">
+            <Link to="/forgot-password" className="text-sm text-grape-400 hover:text-grape-300">
+              Forgot your password?
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

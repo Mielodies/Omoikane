@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Home, Layers, BarChart3, FileText, PenTool, Calculator, LogIn, LogOut, User } from 'lucide-react';
+import { BookOpen, Home, Layers, BarChart3, FileText, PenTool, Calculator, LogIn, LogOut, User, Settings } from 'lucide-react';
 import { getMe, logout } from './api.js';
 import Home_page from './pages/Home.jsx';
 import Decks_page from './pages/Decks.jsx';
@@ -11,6 +11,9 @@ import Stats_page from './pages/Stats.jsx';
 import Notes_page from './pages/Notes.jsx';
 import Whiteboard_page from './pages/Whiteboard.jsx';
 import Auth_page from './pages/Auth.jsx';
+import ForgotPassword_page from './pages/ForgotPassword.jsx';
+import ResetPassword_page from './pages/ResetPassword.jsx';
+import AccountSettings_page from './pages/AccountSettings.jsx';
 import CalculatorPopup from './components/Calculator.jsx';
 
 function NavBar({ user, onLogout, onToggleCalc, calcOpen }) {
@@ -79,6 +82,13 @@ function NavBar({ user, onLogout, onToggleCalc, calcOpen }) {
                       <p className="text-sm font-medium">{user.username}</p>
                       <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
+                    <Link
+                      to="/account"
+                      onClick={() => setMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" /> Account Settings
+                    </Link>
                     <button
                       onClick={() => { onLogout(); setMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-gray-700 transition-colors"
@@ -144,6 +154,9 @@ export default function App() {
           <Route path="/notes" element={<Notes_page user={user} />} />
           <Route path="/whiteboard" element={<Whiteboard_page user={user} />} />
           <Route path="/auth" element={<Auth_page onAuth={setUser} />} />
+          <Route path="/forgot-password" element={<ForgotPassword_page />} />
+          <Route path="/reset-password" element={<ResetPassword_page />} />
+          <Route path="/account" element={user ? <AccountSettings_page user={user} onUpdate={setUser} /> : <Auth_page onAuth={setUser} />} />
         </Routes>
       </main>
     </BrowserRouter>
