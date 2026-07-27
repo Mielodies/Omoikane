@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { run, get, getAll, insert } from '../db.js';
+import { optionalAuth } from '../middleware/auth.js';
 import { generateCards } from '../services/ai.js';
 import { extractPdfText } from '../services/pdf.js';
 import { extractYouTubeTranscript } from '../services/youtube.js';
@@ -8,7 +9,7 @@ import { extractYouTubeTranscript } from '../services/youtube.js';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-router.post('/process', upload.single('file'), async (req, res) => {
+router.post('/process', optionalAuth, upload.single('file'), async (req, res) => {
   try {
     const { sourceType, text, youtubeUrl, title } = req.body;
     let extractedText = '';
@@ -38,8 +39,8 @@ router.post('/process', upload.single('file'), async (req, res) => {
 
     const totalCards = (aiResult.flashcards?.length || 0) + (aiResult.quizzes?.length || 0);
     const deckId = insert(
-      'INSERT INTO decks (title, source_type, source_preview, card_count) VALUES (?, ?, ?, ?)',
-      [deckTitle, sourceType, preview, totalCards]
+      'INSERT INTO decks (user_id, title, source_type, source_preview, card_count) VALUES (?, ?, ?, ?, ?)',
+      [req.userId || null, deckTitle, sourceType, preview, totalCards]
     );
 
     for (const fc of aiResult.flashcards || []) {

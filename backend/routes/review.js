@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { run, get, getAll, insert } from '../db.js';
+import { optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -75,8 +76,13 @@ router.post('/session', (req, res) => {
   res.json({ sessionId });
 });
 
-router.get('/stats', (req, res) => {
-  const decks = getAll('SELECT * FROM decks ORDER BY created_at DESC');
+router.get('/stats', optionalAuth, (req, res) => {
+  let decks;
+  if (req.userId) {
+    decks = getAll('SELECT * FROM decks WHERE user_id = ? ORDER BY created_at DESC', [req.userId]);
+  } else {
+    decks = getAll('SELECT * FROM decks WHERE user_id IS NULL ORDER BY created_at DESC');
+  }
   let totalCards = 0;
   let totalDue = 0;
   let totalMastered = 0;

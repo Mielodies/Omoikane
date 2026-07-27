@@ -1,27 +1,42 @@
 import { Router } from 'express';
 import { run, get, getAll } from '../db.js';
+import { optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', (req, res) => {
-  const decks = getAll('SELECT * FROM decks ORDER BY created_at DESC');
+router.get('/', optionalAuth, (req, res) => {
+  let decks;
+  if (req.userId) {
+    decks = getAll('SELECT * FROM decks WHERE user_id = ? ORDER BY created_at DESC', [req.userId]);
+  } else {
+    decks = getAll('SELECT * FROM decks WHERE user_id IS NULL ORDER BY created_at DESC');
+  }
   res.json(decks);
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', optionalAuth, (req, res) => {
   const deck = get('SELECT * FROM decks WHERE id = ?', [parseInt(req.params.id)]);
   if (!deck) return res.status(404).json({ error: 'Deck not found' });
+  if (req.userId && deck.user_id && deck.user_id !== req.userId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
 
   const cards = getAll('SELECT * FROM cards WHERE deck_id = ?', [parseInt(req.params.id)]);
   res.json({ deck, cards });
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', optionalAuth, (req, res) => {
+  const deck = get('SELECT * FROM decks WHERE id = ?', [parseInt(req.params.id)]);
+  if (!deck) return res.status(404).json({ error: 'Deck not found' });
+  if (req.userId && deck.user_id && deck.user_id !== req.userId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
   run('DELETE FROM decks WHERE id = ?', [parseInt(req.params.id)]);
   res.json({ success: true });
 });
 
-router.get('/:id/stats', (req, res) => {
+router.get('/:id/stats', optionalAuth, (req, res) => {
   const deckId = parseInt(req.params.id);
   const deck = get('SELECT * FROM decks WHERE id = ?', [deckId]);
   if (!deck) return res.status(404).json({ error: 'Deck not found' });

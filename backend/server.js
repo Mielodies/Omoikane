@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { initDB } from './db.js';
+import authRouter from './routes/auth.js';
 import documentsRouter from './routes/documents.js';
 import decksRouter from './routes/decks.js';
 import reviewRouter from './routes/review.js';
@@ -13,6 +14,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+app.use('/api/auth', authRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/decks', decksRouter);
 app.use('/api/review', reviewRouter);
