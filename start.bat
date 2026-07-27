@@ -6,16 +6,15 @@ echo ===================================
 echo.
 
 if exist "backend\.env" (
-    echo Loading .env file...
     for /f "usebackq tokens=1,* delims==" %%a in ("backend\.env") do (
         set "%%a=%%b"
     )
 )
 
-if "%ANTHROPIC_API_KEY%"=="" (
-    echo WARNING: ANTHROPIC_API_KEY is not set!
+if "%GROQ_API_KEY%"=="" (
+    echo WARNING: GROQ_API_KEY is not set!
     echo Copy backend\.env.example to backend\.env and add your key.
-    echo Get one free at: https://console.anthropic.com/
+    echo Get one free at: https://console.groq.com/
     echo.
 )
 
@@ -32,5 +31,4 @@ echo Omoikane is starting!
 echo   Frontend: http://localhost:5173
 echo   Backend:  http://localhost:3001
 echo.
-echo Close this window or press Ctrl+C to stop.
 pause
