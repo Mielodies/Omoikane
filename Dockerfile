@@ -12,6 +12,8 @@ COPY frontend/ frontend/
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV DB_PATH=/data/omoikane.db
+RUN mkdir -p /data
 EXPOSE 3001
 
 RUN cd frontend && npm run build
