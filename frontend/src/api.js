@@ -64,3 +64,13 @@ export async function getGlobalStats() {
   const res = await fetch(`${API}/review/stats`);
   return res.json();
 }
+
+export async function analyzeWhiteboard(image) {
+  const res = await fetch(`${API}/whiteboard/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Analysis failed');
+  return res.json();
+}

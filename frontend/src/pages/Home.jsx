@@ -43,7 +43,7 @@ export default function Home() {
     <div className="max-w-2xl mx-auto">
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold mb-3">
-          <span className="text-grape-400">Miel</span>Learn
+          <span className="text-grape-400">Omoikane</span>
         </h1>
         <p className="text-gray-400 text-lg">
           Paste content, get flashcards & quizzes. Free forever.
