@@ -3,9 +3,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDB } from './db.js';
+import { initDB, get } from './db.js';
 import authRouter from './routes/auth.js';
 import documentsRouter from './routes/documents.js';
 import decksRouter from './routes/decks.js';
@@ -13,9 +15,12 @@ import reviewRouter from './routes/review.js';
 import whiteboardRouter from './routes/whiteboard.js';
 import notesRouter from './routes/notes.js';
 import boardsRouter from './routes/whiteboards.js';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from './middleware/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -70,11 +75,7 @@ app.use('/api/notes', notesRouter);
 app.use('/api/boards', boardsRouter);
 
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-  });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
 });
 
 if (isProd) {
@@ -85,30 +86,127 @@ if (isProd) {
   });
 }
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
+app.use((req, res) => { res.status(404).json({ error: 'Not found' }); });
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: isProd ? 'Internal server error' : err.message });
 });
 
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down...');
-  process.exit(0);
-});
+const wss = new WebSocketServer({ server, path: '/ws' });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down...');
-  process.exit(0);
+const rooms = new Map();
+
+function broadcast(roomId, message, excludeId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  const data = JSON.stringify(message);
+  for (const [id, client] of room.clients) {
+    if (id !== excludeId && client.ws.readyState === 1) {
+      client.ws.send(data);
+    }
+  }
+}
+
+function getRoomUsers(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return [];
+  return Array.from(room.clients.values()).map((c) => ({
+    id: c.id,
+    username: c.username,
+    color: c.color,
+  }));
+}
+
+const USER_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7', '#f97316'];
+
+wss.on('connection', (ws, req) => {
+  let userId = null;
+  let username = 'Guest';
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.userId;
+      const user = get('SELECT username FROM users WHERE id = ?', [decoded.userId]);
+      if (user) username = user.username;
+    } catch {}
+  }
+
+  const clientId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const color = USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)];
+  let currentRoom = null;
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+
+    if (msg.type === 'join') {
+      const roomId = msg.boardId;
+      if (!roomId) return;
+
+      if (currentRoom) {
+        const oldRoom = rooms.get(currentRoom);
+        if (oldRoom) { oldRoom.clients.delete(clientId); broadcast(currentRoom, { type: 'user_left', userId: clientId, users: getRoomUsers(currentRoom) }); }
+      }
+
+      currentRoom = roomId;
+      if (!rooms.has(roomId)) rooms.set(roomId, { clients: new Map(), canvasData: null });
+      const room = rooms.get(roomId);
+      room.clients.set(clientId, { ws, id: clientId, username, color });
+
+      if (msg.canvasData) room.canvasData = msg.canvasData;
+
+      ws.send(JSON.stringify({
+        type: 'joined',
+        clientId,
+        users: getRoomUsers(roomId),
+        canvasData: room.canvasData,
+      }));
+
+      broadcast(roomId, { type: 'user_joined', userId: clientId, username, color, users: getRoomUsers(roomId) }, clientId);
+    }
+
+    if (msg.type === 'draw' && currentRoom) {
+      broadcast(currentRoom, { type: 'draw', data: msg.data, userId: clientId }, clientId);
+    }
+
+    if (msg.type === 'cursor' && currentRoom) {
+      broadcast(currentRoom, { type: 'cursor', x: msg.x, y: msg.y, userId: clientId, username, color }, clientId);
+    }
+
+    if (msg.type === 'canvas_update' && currentRoom) {
+      const room = rooms.get(currentRoom);
+      if (room) room.canvasData = msg.canvasData;
+    }
+
+    if (msg.type === 'clear' && currentRoom) {
+      const room = rooms.get(currentRoom);
+      if (room) room.canvasData = null;
+      broadcast(currentRoom, { type: 'clear', userId: clientId });
+    }
+  });
+
+  ws.on('close', () => {
+    if (currentRoom) {
+      const room = rooms.get(currentRoom);
+      if (room) {
+        room.clients.delete(clientId);
+        broadcast(currentRoom, { type: 'user_left', userId: clientId, users: getRoomUsers(currentRoom) });
+        if (room.clients.size === 0) rooms.delete(currentRoom);
+      }
+    }
+  });
 });
 
 initDB().then(() => {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Omoikane running on http://localhost:${PORT} [${isProd ? 'production' : 'development'}]`);
   });
 }).catch((err) => {
   console.error('Failed to initialize database:', err);
   process.exit(1);
 });
+
+process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => process.exit(0));
