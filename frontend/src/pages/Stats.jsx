@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart3, Target, Zap, Layers, TrendingUp, Flame } from 'lucide-react';
-import { getGlobalStats, getDecks, getStudyHistory, getDeckStats } from '../api.js';
+import { getGlobalStats, getDecks, getStudyHistory, getDeckStats, getGamificationProfile, getDailyChallenges } from '../api.js';
+import XPBar from '../components/XPBar.jsx';
+import Achievements from '../components/Achievements.jsx';
+import DailyChallenges from '../components/DailyChallenges.jsx';
+import StudyCalendar from '../components/StudyCalendar.jsx';
 
 function calculateStreaks(history) {
   if (!history || history.length === 0) return { current: 0, longest: 0 };
@@ -41,6 +45,8 @@ export default function Stats() {
   const [deckStats, setDeckStats] = useState({});
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [gamification, setGamification] = useState(null);
+  const [challenges, setChallenges] = useState([]);
 
   useEffect(() => {
     Promise.all([getGlobalStats(), getDecks(), getStudyHistory()])
@@ -56,6 +62,9 @@ export default function Stats() {
         setDeckStats(map);
       })
       .finally(() => setLoading(false));
+
+    getGamificationProfile().then((p) => setGamification(p)).catch(() => {});
+    getDailyChallenges().then((c) => setChallenges(c.challenges || c)).catch(() => {});
   }, []);
 
   const streaks = useMemo(() => calculateStreaks(history), [history]);
@@ -95,11 +104,23 @@ export default function Stats() {
   }
 
   return (
-    <div>
+    <div className="pb-24">
       <h1 className="text-2xl font-bold flex items-center gap-2 mb-8">
         <BarChart3 className="w-6 h-6 text-grape-400" />
         Progress
       </h1>
+
+      <StudyCalendar history={history} />
+
+      {gamification && (
+        <XPBar
+          xp={gamification.xp || 0}
+          level={gamification.level || 1}
+          title={gamification.title || 'Learner'}
+          nextLevelXp={gamification.nextLevelXp || 100}
+          currentLevelXp={gamification.currentLevelXp || 0}
+        />
+      )}
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -131,6 +152,14 @@ export default function Stats() {
           <div className="p-2 bg-yellow-500/20 rounded-lg"><Flame className="w-5 h-5 text-yellow-400" /></div>
           <div><p className="text-xs text-gray-400">Longest streak</p><p className="text-2xl font-bold">{streaks.longest} <span className="text-sm font-normal text-gray-400">days</span></p></div>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <DailyChallenges challenges={challenges} />
+      </div>
+
+      <div className="mb-8">
+        <Achievements unlocked={gamification?.achievements || []} />
       </div>
 
       <div className="card mb-8">

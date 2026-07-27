@@ -153,6 +153,101 @@ export async function initDB() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_xp (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      xp INTEGER DEFAULT 0,
+      level INTEGER DEFAULT 1,
+      title TEXT DEFAULT 'Novice',
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS achievements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      badge_id TEXT NOT NULL,
+      unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, badge_id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS daily_challenges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      challenge_date DATE NOT NULL,
+      challenge_type TEXT NOT NULL,
+      target INTEGER NOT NULL,
+      progress INTEGER DEFAULT 0,
+      completed INTEGER DEFAULT 0,
+      xp_reward INTEGER DEFAULT 50,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, challenge_date, challenge_type)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS study_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      owner_id INTEGER NOT NULL,
+      invite_code TEXT NOT NULL UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS group_members (
+      group_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (group_id, user_id),
+      FOREIGN KEY (group_id) REFERENCES study_groups(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS public_decks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      deck_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      description TEXT DEFAULT '',
+      downloads INTEGER DEFAULT 0,
+      rating REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      user_id INTEGER PRIMARY KEY,
+      bio TEXT DEFAULT '',
+      avatar_color TEXT DEFAULT '#a855f7',
+      is_public INTEGER DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS deck_themes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      deck_id INTEGER NOT NULL UNIQUE,
+      bg_color TEXT DEFAULT '#1f2937',
+      card_bg TEXT DEFAULT '#111827',
+      accent_color TEXT DEFAULT '#a855f7',
+      text_color TEXT DEFAULT '#f3f4f6',
+      FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE
+    )
+  `);
+
   saveDB();
   return db;
 }

@@ -19,6 +19,10 @@ import cardsRouter from './routes/cards.js';
 import tagsRouter from './routes/tags.js';
 import shareRouter from './routes/share.js';
 import importExportRouter from './routes/importexport.js';
+import gamificationRouter from './routes/gamification.js';
+import socialRouter from './routes/social.js';
+import recommendationsRouter from './routes/recommendations.js';
+import themesRouter from './routes/themes.js';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from './middleware/auth.js';
 
@@ -81,6 +85,10 @@ app.use('/api/cards', cardsRouter);
 app.use('/api/tags', tagsRouter);
 app.use('/api/share', shareRouter);
 app.use('/api/ie', importExportRouter);
+app.use('/api/gamification', gamificationRouter);
+app.use('/api/social', socialRouter);
+app.use('/api/recommendations', recommendationsRouter);
+app.use('/api/themes', themesRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });

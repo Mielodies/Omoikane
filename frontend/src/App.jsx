@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Home, Layers, BarChart3, FileText, PenTool, Calculator, Timer, Search, LogIn, LogOut, User, Settings, Sun, Moon } from 'lucide-react';
+import { BookOpen, Home, Layers, BarChart3, FileText, PenTool, Calculator, Timer, Search, LogIn, LogOut, User, Settings, Sun, Moon, Users, Globe } from 'lucide-react';
 import { getMe, logout } from './api.js';
 import Home_page from './pages/Home.jsx';
 import Decks_page from './pages/Decks.jsx';
@@ -16,8 +16,12 @@ import ResetPassword_page from './pages/ResetPassword.jsx';
 import AccountSettings_page from './pages/AccountSettings.jsx';
 import SharedDeck_page from './pages/SharedDeck.jsx';
 import Search_page from './pages/Search.jsx';
+import Groups_page from './pages/Groups.jsx';
+import Marketplace_page from './pages/Marketplace.jsx';
+import Profile_page from './pages/Profile.jsx';
 import CalculatorPopup from './components/Calculator.jsx';
 import Pomodoro from './components/Pomodoro.jsx';
+import ShortcutOverlay from './components/ShortcutOverlay.jsx';
 
 function NavBar({ user, onLogout, onToggleCalc, calcOpen, onTogglePomo, pomoOpen, dark, onToggleTheme }) {
   const location = useLocation();
@@ -30,6 +34,8 @@ function NavBar({ user, onLogout, onToggleCalc, calcOpen, onTogglePomo, pomoOpen
     { to: '/notes', icon: FileText, label: 'Notes' },
     { to: '/whiteboard', icon: PenTool, label: 'Whiteboard' },
     { to: '/search', icon: Search, label: 'Search' },
+    { to: '/groups', icon: Users, label: 'Groups' },
+    { to: '/marketplace', icon: Globe, label: 'Market' },
   ];
 
   return (
@@ -107,6 +113,13 @@ function NavBar({ user, onLogout, onToggleCalc, calcOpen, onTogglePomo, pomoOpen
                       <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
                     <Link
+                      to={`/profile/${user.id}`}
+                      onClick={() => setMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                    >
+                      <User className="w-4 h-4" /> Profile
+                    </Link>
+                    <Link
                       to="/account"
                       onClick={() => setMenuOpen(false)}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
@@ -179,6 +192,7 @@ export default function App() {
       <NavBar user={user} onLogout={handleLogout} calcOpen={calcOpen} onToggleCalc={() => setCalcOpen(!calcOpen)} pomoOpen={pomoOpen} onTogglePomo={() => setPomoOpen(!pomoOpen)} dark={dark} onToggleTheme={() => setDark(!dark)} />
       <CalculatorPopup open={calcOpen} onClose={() => setCalcOpen(false)} />
       <Pomodoro open={pomoOpen} onClose={() => setPomoOpen(false)} />
+      <ShortcutOverlay />
       <main className="max-w-6xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={<Home_page />} />
@@ -195,6 +209,9 @@ export default function App() {
           <Route path="/account" element={user ? <AccountSettings_page user={user} onUpdate={setUser} /> : <Auth_page onAuth={setUser} />} />
           <Route path="/shared/:token" element={<SharedDeck_page />} />
           <Route path="/search" element={<Search_page />} />
+          <Route path="/groups" element={<Groups_page />} />
+          <Route path="/marketplace" element={<Marketplace_page />} />
+          <Route path="/profile/:userId" element={<Profile_page />} />
         </Routes>
       </main>
     </BrowserRouter>

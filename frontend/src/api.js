@@ -313,3 +313,128 @@ export async function getStudyHistory() {
   const res = await fetch(`${API}/review/history`, { headers: { ...authHeaders() } });
   return res.json();
 }
+
+export async function getGroups() {
+  const res = await fetch(`${API}/social/groups`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function createGroup(name) {
+  const res = await fetch(`${API}/social/groups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name }),
+  });
+  return res.json();
+}
+
+export async function joinGroup(inviteCode) {
+  const res = await fetch(`${API}/social/groups/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ inviteCode }),
+  });
+  return res.json();
+}
+
+export async function getGroup(id) {
+  const res = await fetch(`${API}/social/groups/${id}`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function leaveGroup(id) {
+  await fetch(`${API}/social/groups/${id}/leave`, { method: 'POST', headers: { ...authHeaders() } });
+}
+
+export async function deleteGroup(id) {
+  await fetch(`${API}/social/groups/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
+}
+
+export async function getMarketplace(query, sort) {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (sort) params.set('sort', sort);
+  const res = await fetch(`${API}/social/marketplace?${params}`);
+  return res.json();
+}
+
+export async function publishDeck(deckId, description) {
+  const res = await fetch(`${API}/social/marketplace/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ deckId, description }),
+  });
+  return res.json();
+}
+
+export async function downloadFromMarketplace(id) {
+  const res = await fetch(`${API}/social/marketplace/download/${id}`, { method: 'POST', headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function getProfile(userId) {
+  const res = await fetch(`${API}/social/profile/${userId}`);
+  return res.json();
+}
+
+export async function updateProfile(bio, avatar_color, is_public) {
+  const res = await fetch(`${API}/social/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ bio, avatar_color, is_public }),
+  });
+  return res.json();
+}
+
+export async function getLeaderboard(type) {
+  const res = await fetch(`${API}/social/leaderboard?type=${type || 'xp'}`);
+  return res.json();
+}
+
+export async function getWeakCards() {
+  const res = await fetch(`${API}/recommendations/weak-cards`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function getSuggestions() {
+  const res = await fetch(`${API}/recommendations/suggestions`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function getDeckTheme(deckId) {
+  const res = await fetch(`${API}/themes/${deckId}`);
+  return res.json();
+}
+
+export async function updateDeckTheme(deckId, theme) {
+  const res = await fetch(`${API}/themes/${deckId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(theme),
+  });
+  return res.json();
+}
+
+export async function getRecommendations() {
+  const res = await fetch(`${API}/recommendations/suggestions`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function getGamificationProfile() {
+  const res = await fetch(`${API}/gamification/profile`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function getDailyChallenges() {
+  const res = await fetch(`${API}/gamification/challenges`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function awardXP(amount, reason) {
+  const res = await fetch(`${API}/gamification/xp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ amount, reason }),
+  });
+  return res.json();
+}

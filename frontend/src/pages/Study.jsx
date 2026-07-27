@@ -1,7 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, X, RotateCcw, Trophy, Keyboard, MousePointerClick, Volume2 } from 'lucide-react';
 import { getDueCards, getAllCards, submitReview, saveSession } from '../api.js';
+import LaTeX from '../components/LaTeX.jsx';
+
+function parseCloze(text) {
+  const regex = /\{\{c\d+::([^}]+)\}\}/g;
+  const answers = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) answers.push(match[1]);
+  const blanked = text.replace(regex, '______');
+  return { blanked, answers, hasCloze: answers.length > 0 };
+}
 
 export default function Study() {
   const { id } = useParams();
@@ -46,7 +56,14 @@ export default function Study() {
 
   function handleSubmitType() {
     const card = cards[currentIndex];
-    const isMatch = typedAnswer.trim().toLowerCase() === card.answer.trim().toLowerCase();
+    const { answers, hasCloze } = parseCloze(card.question);
+    const input = typedAnswer.trim().toLowerCase();
+    let isMatch = false;
+    if (hasCloze) {
+      isMatch = answers.some((a) => input === a.trim().toLowerCase());
+    } else {
+      isMatch = input === card.answer.trim().toLowerCase();
+    }
     setMatchResult(isMatch);
     setSubmitted(true);
   }
@@ -122,6 +139,23 @@ export default function Study() {
 
   const card = cards[currentIndex];
   const progress = ((currentIndex + 1) / cards.length) * 100;
+  const { blanked, hasCloze } = parseCloze(card.question);
+  const opts = card.options ? JSON.parse(card.options) : {};
+
+  function renderQuestionText(original, blankedText, isFlipped) {
+    if (hasCloze) {
+      return isFlipped ? (
+        <LaTeX text={original} className="text-xl text-center leading-relaxed px-4 [&_.cloze-answer]:text-grape-400 [&_.cloze-answer]:font-semibold" />
+      ) : (
+        <LaTeX text={blankedText} className="text-xl text-center leading-relaxed px-4" />
+      );
+    }
+    return <LaTeX text={original} className="text-xl text-center leading-relaxed px-4" />;
+  }
+
+  const clozeHighlightStyle = hasCloze && flipped
+    ? card.question.replace(/\{\{c\d+::([^}]+)\}\}/g, '<span class="text-grape-400 font-semibold">$1</span>')
+    : null;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -164,6 +198,7 @@ export default function Study() {
             onClick={handleFlip}
             className="card min-h-[300px] flex flex-col items-center justify-center cursor-pointer select-none hover:border-grape-500/30 transition-all"
           >
+            {opts.image && <img src={opts.image} className="max-h-48 rounded-xl mb-4 object-contain" alt="" />}
             <div className="flex items-center gap-2 mb-6">
               <p className="text-xs text-gray-500 uppercase tracking-wider">
                 {flipped ? 'Answer' : 'Question'}
@@ -176,26 +211,42 @@ export default function Study() {
                 <Volume2 className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-xl text-center leading-relaxed px-4">
-              {flipped ? card.answer : card.question}
-            </p>
+            {hasCloze && flipped ? (
+              <p
+                className="text-xl text-center leading-relaxed px-4"
+                dangerouslySetInnerHTML={{
+                  __html: card.question.replace(/\{\{c\d+::([^}]+)\}\}/g, '<span class="text-grape-400 font-semibold">$1</span>'),
+                }}
+              />
+            ) : (
+              renderQuestionText(card.question, blanked, flipped)
+            )}
             {!flipped && <p className="text-xs text-gray-500 mt-8">Click to reveal answer</p>}
           </div>
 
           {flipped && (
-            <div className="flex gap-4 mt-6">
-              <button onClick={() => handleAnswer(false)} className="flex-1 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 font-semibold py-4 rounded-xl transition-all active:scale-95">
-                <X className="w-5 h-5" /> Incorrect
-              </button>
-              <button onClick={() => handleAnswer(true)} className="flex-1 flex items-center justify-center gap-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/30 font-semibold py-4 rounded-xl transition-all active:scale-95">
-                <Check className="w-5 h-5" /> Got it!
-              </button>
-            </div>
+            <>
+              {hasCloze ? (
+                <div className="card mt-6">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Full text</p>
+                  <p className="text-lg leading-relaxed">{card.answer || card.question.replace(/\{\{c\d+::([^}]+)\}\}/g, '$1')}</p>
+                </div>
+              ) : null}
+              <div className="flex gap-4 mt-6">
+                <button onClick={() => handleAnswer(false)} className="flex-1 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 font-semibold py-4 rounded-xl transition-all active:scale-95">
+                  <X className="w-5 h-5" /> Incorrect
+                </button>
+                <button onClick={() => handleAnswer(true)} className="flex-1 flex items-center justify-center gap-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/30 font-semibold py-4 rounded-xl transition-all active:scale-95">
+                  <Check className="w-5 h-5" /> Got it!
+                </button>
+              </div>
+            </>
           )}
         </>
       ) : (
         <>
           <div className="card min-h-[200px] flex flex-col items-center justify-center select-none">
+            {opts.image && <img src={opts.image} className="max-h-48 rounded-xl mb-4 object-contain" alt="" />}
             <div className="flex items-center gap-2 mb-6">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Question</p>
               <button
@@ -206,9 +257,7 @@ export default function Study() {
                 <Volume2 className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-xl text-center leading-relaxed px-4">
-              {card.question}
-            </p>
+            {renderQuestionText(card.question, blanked, false)}
           </div>
 
           {!submitted ? (
@@ -218,7 +267,7 @@ export default function Study() {
                 value={typedAnswer}
                 onChange={(e) => setTypedAnswer(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && typedAnswer.trim()) handleSubmitType(); }}
-                placeholder="Type your answer..."
+                placeholder={hasCloze ? 'Type the missing word...' : 'Type your answer...'}
                 className="input-field"
                 autoFocus
               />
@@ -249,14 +298,16 @@ export default function Study() {
                 <div className="flex items-center gap-2 mb-3">
                   <p className="text-xs text-gray-500 uppercase tracking-wider">Correct answer</p>
                   <button
-                    onClick={() => speak(card.answer)}
+                    onClick={() => speak(hasCloze ? parseCloze(card.question).answers.join(' or ') : card.answer)}
                     className="p-1 text-gray-500 hover:text-grape-400 transition-colors"
                     title="Read aloud"
                   >
                     <Volume2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <p className="text-lg text-green-400">{card.answer}</p>
+                <p className="text-lg text-green-400">
+                  {hasCloze ? parseCloze(card.question).answers.join(' or ') : <LaTeX text={card.answer} />}
+                </p>
               </div>
               <div className="flex gap-4">
                 <button onClick={() => handleAnswer(false)} className="flex-1 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 font-semibold py-4 rounded-xl transition-all active:scale-95">

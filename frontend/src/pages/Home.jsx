@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Youtube, ClipboardPaste, Loader2, Sparkles } from 'lucide-react';
+import { FileText, Youtube, ClipboardPaste, Loader2, Sparkles, ImagePlus, X } from 'lucide-react';
 import { processDocument } from '../api.js';
 
 const TABS = [
@@ -17,20 +17,54 @@ export default function Home() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  function handleImageSelect(e) {
+    const selected = e.target.files[0];
+    if (!selected) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target.result);
+    reader.readAsDataURL(selected);
+  }
+
+  function handlePaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(blob);
+        return;
+      }
+    }
+  }
+
+  function removeImage() {
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const result = await processDocument({
+      const payload = {
         sourceType: activeTab,
         text: activeTab === 'text' ? text : undefined,
         youtubeUrl: activeTab === 'youtube' ? youtubeUrl : undefined,
         file: activeTab === 'pdf' ? file : undefined,
         title: title || undefined,
-      });
+      };
+      if (imagePreview) {
+        payload.image = imagePreview;
+      }
+      const result = await processDocument(payload);
       navigate(`/decks/${result.deck.id}`);
     } catch (err) {
       setError(err.message);
@@ -82,6 +116,7 @@ export default function Home() {
               placeholder="Paste your study material here..."
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onPaste={activeTab === 'text' ? handlePaste : undefined}
               className="input-field h-48 resize-none"
             />
           )}
@@ -110,6 +145,37 @@ export default function Home() {
               className="input-field"
             />
           )}
+
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+              id="image-upload"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:border-grape-500/50 hover:text-grape-400 transition-all"
+            >
+              <ImagePlus className="w-4 h-4" />
+              {imagePreview ? 'Change Image' : 'Add Image'}
+            </button>
+            {imagePreview && (
+              <div className="relative">
+                <img src={imagePreview} className="h-16 w-16 object-cover rounded-lg border border-gray-700" alt="Preview" />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
 
           {error && (
             <div className="bg-red-600/20 text-red-400 border border-red-600/30 rounded-xl px-4 py-3 text-sm">

@@ -53,3 +53,8 @@ html:not(.dark) .shadow-black\/50 { box-shadow: 0 10px 15px -3px rgba(107,114,12
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
 }
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Trash2, FileText, Youtube, ClipboardPaste, Clock, Sparkles, Download, Upload } from 'lucide-react';
-import { getDecks, deleteDeck, exportDeck, importDeck } from '../api.js';
+import { Layers, Trash2, FileText, Youtube, ClipboardPaste, Clock, Sparkles, Download, Upload, Globe } from 'lucide-react';
+import { getDecks, deleteDeck, exportDeck, importDeck, publishDeck } from '../api.js';
 import { useToast } from '../components/Toast.jsx';
 
 const sourceIcons = {
@@ -13,6 +13,7 @@ const sourceIcons = {
 export default function Decks() {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(null);
   const toast = useToast();
   const fileInputRef = useRef(null);
 
@@ -58,6 +59,19 @@ export default function Decks() {
     e.target.value = '';
   }
 
+  async function handlePublish(deckId) {
+    setPublishing(deckId);
+    try {
+      await publishDeck(deckId, '');
+      setDecks(decks.map((d) => d.id === deckId ? { ...d, is_published: true } : d));
+      toast('Published to Marketplace');
+    } catch {
+      toast('Failed to publish', 'error');
+    } finally {
+      setPublishing(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -74,6 +88,10 @@ export default function Decks() {
           Your Decks
         </h1>
         <div className="flex items-center gap-2">
+          <Link to="/marketplace" className="btn-secondary text-sm flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            Marketplace
+          </Link>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="btn-secondary text-sm flex items-center gap-2"
@@ -115,6 +133,23 @@ export default function Decks() {
                     {deck.title}
                   </Link>
                   <div className="flex items-center gap-1">
+                    {deck.is_published && (
+                      <span className="bg-grape-500/20 text-grape-400 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
+                        <Globe className="w-3 h-3" /> Published
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handlePublish(deck.id)}
+                      disabled={publishing === deck.id || deck.is_published}
+                      title={deck.is_published ? 'Already published' : 'Publish to Marketplace'}
+                      className={`p-1 transition-all ${
+                        deck.is_published
+                          ? 'text-grape-400 opacity-50 cursor-default'
+                          : 'opacity-0 group-hover:opacity-100 text-gray-500 hover:text-grape-400'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleExport(deck.id, deck.title)}
                       title="Export deck"
