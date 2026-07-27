@@ -141,8 +141,8 @@ export default function App() {
           <Route path="/study/:id" element={<Study_page />} />
           <Route path="/quiz/:id" element={<Quiz_page />} />
           <Route path="/stats" element={<Stats_page />} />
-          <Route path="/notes" element={<Notes_page />} />
-          <Route path="/whiteboard" element={<Whiteboard_page />} />
+          <Route path="/notes" element={<Notes_page user={user} />} />
+          <Route path="/whiteboard" element={<Whiteboard_page user={user} />} />
           <Route path="/auth" element={<Auth_page onAuth={setUser} />} />
         </Routes>
       </main>

@@ -11,6 +11,8 @@ import documentsRouter from './routes/documents.js';
 import decksRouter from './routes/decks.js';
 import reviewRouter from './routes/review.js';
 import whiteboardRouter from './routes/whiteboard.js';
+import notesRouter from './routes/notes.js';
+import boardsRouter from './routes/whiteboards.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -64,6 +66,8 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/decks', decksRouter);
 app.use('/api/review', reviewRouter);
 app.use('/api/whiteboard', whiteboardRouter);
+app.use('/api/notes', notesRouter);
+app.use('/api/boards', boardsRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({

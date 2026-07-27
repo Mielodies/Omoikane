@@ -120,3 +120,62 @@ export async function analyzeWhiteboard(image) {
   if (!res.ok) throw new Error((await res.json()).error || 'Analysis failed');
   return res.json();
 }
+
+export async function getNotes() {
+  const res = await fetch(`${API}/notes`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function createNote(title, body) {
+  const res = await fetch(`${API}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ title, body }),
+  });
+  return res.json();
+}
+
+export async function updateNote(id, title, body) {
+  const res = await fetch(`${API}/notes/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ title, body }),
+  });
+  return res.json();
+}
+
+export async function deleteNote(id) {
+  await fetch(`${API}/notes/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
+}
+
+export async function getBoards() {
+  const res = await fetch(`${API}/boards`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function getBoard(id) {
+  const res = await fetch(`${API}/boards/${id}`, { headers: { ...authHeaders() } });
+  return res.json();
+}
+
+export async function createBoard(name, canvas_data) {
+  const res = await fetch(`${API}/boards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name, canvas_data }),
+  });
+  return res.json();
+}
+
+export async function updateBoard(id, name, canvas_data) {
+  const res = await fetch(`${API}/boards/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name, canvas_data }),
+  });
+  return res.json();
+}
+
+export async function deleteBoard(id) {
+  await fetch(`${API}/boards/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
+}
