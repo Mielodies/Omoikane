@@ -221,3 +221,9 @@ export async function changePassword(currentPassword, newPassword) {
 export async function deleteBoard(id) {
   await fetch(`${API}/boards/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
 }
+
+export async function getAccountStats() {
+  const res = await fetch(`${API}/auth/stats`, { headers: { ...authHeaders() } });
+  if (!res.ok) throw new Error('Failed to load stats');
+  return res.json();
+}

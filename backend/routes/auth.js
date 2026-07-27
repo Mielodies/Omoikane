@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { get, insert, run } from '../db.js';
+import { get, getAll, insert, run } from '../db.js';
 import { JWT_SECRET, authMiddleware } from '../middleware/auth.js';
 import { sendPasswordResetEmail } from '../services/email.js';
 
@@ -197,6 +197,47 @@ router.post('/change-password', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Change password error:', err);
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+router.get('/stats', authMiddleware, (req, res) => {
+  try {
+    const user = get('SELECT id, username, email, created_at FROM users WHERE id = ?', [req.userId]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const decks = getAll('SELECT id FROM decks WHERE user_id = ?', [req.userId]);
+    const deckIds = decks.map(d => d.id);
+
+    let totalCards = 0;
+    let totalDue = 0;
+    let totalMastered = 0;
+    for (const id of deckIds) {
+      const s = get(
+        "SELECT COUNT(*) as total, SUM(CASE WHEN next_review <= datetime('now') THEN 1 ELSE 0 END) as due, SUM(CASE WHEN repetitions >= 3 THEN 1 ELSE 0 END) as mastered FROM cards WHERE deck_id = ?",
+        [id]
+      );
+      totalCards += s.total || 0;
+      totalDue += s.due || 0;
+      totalMastered += s.mastered || 0;
+    }
+
+    const totalSessions = get('SELECT COUNT(*) as count FROM study_sessions WHERE user_id = ?', [req.userId]);
+    const totalNotes = get('SELECT COUNT(*) as count FROM notes WHERE user_id = ?', [req.userId]);
+    const totalBoards = get('SELECT COUNT(*) as count FROM whiteboards WHERE user_id = ?', [req.userId]);
+
+    res.json({
+      user,
+      decks: decks.length,
+      cards: totalCards,
+      due: totalDue,
+      mastered: totalMastered,
+      sessions: totalSessions.count || 0,
+      notes: totalNotes.count || 0,
+      whiteboards: totalBoards.count || 0,
+    });
+  } catch (err) {
+    console.error('Account stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 
